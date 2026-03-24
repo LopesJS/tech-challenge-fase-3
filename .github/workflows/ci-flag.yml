@@ -1,0 +1,23 @@
+name: CI — flag-service
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "services/flag/**"
+      - ".github/workflows/ci-flag.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "services/flag/**"
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci-reusable.yml
+    with:
+      service:           flag
+      language:          python
+      working_directory: services/flag
+    secrets:
+      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+      GHA_ROLE_ARN:   ${{ secrets.GHA_ROLE_ARN }}

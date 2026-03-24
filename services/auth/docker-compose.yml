@@ -1,0 +1,32 @@
+services:
+  auth-app:
+    container_name: auth-service
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${PORT}:${PORT}"
+    env_file:
+      - .env
+    depends_on:
+      - auth-postgres
+    restart: unless-stopped
+
+  auth-postgres:
+    image: postgres:14
+    container_name: auth-postgres
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: auth_db
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: "12345"
+    ports:
+      - "5433:5433"
+    volumes:
+      - pgdata_2:/var/lib/postgresql/data
+      - ./db:/docker-entrypoint-initdb.d
+    restart: unless-stopped
+
+volumes:
+  pgdata_2:

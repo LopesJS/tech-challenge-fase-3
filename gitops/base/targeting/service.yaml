@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: togglemaster-targeting-svc
+  namespace: togglemaster
+spec:
+  selector:
+    app: togglemaster-targeting
+  ports:
+    - protocol: TCP
+      port: 8003
+      targetPort: 8003
+  type: ClusterIP

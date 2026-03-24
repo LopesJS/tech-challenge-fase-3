@@ -1,0 +1,23 @@
+name: CI — auth-service
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "services/auth/**"
+      - ".github/workflows/ci-auth.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "services/auth/**"
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci-reusable.yml
+    with:
+      service:           auth
+      language:          go
+      working_directory: services/auth
+    secrets:
+      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+      GHA_ROLE_ARN:   ${{ secrets.GHA_ROLE_ARN }}

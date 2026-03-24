@@ -1,0 +1,129 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: togglemaster-evaluation
+  namespace: togglemaster
+  labels:
+    app: togglemaster-evaluation
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: togglemaster-evaluation
+  template:
+    metadata:
+      labels:
+        app: togglemaster-evaluation
+    spec:
+      containers:
+        - name: evaluation
+          # TAG ATUALIZADA AUTOMATICAMENTE PELO CI
+          image: ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/togglemaster-evaluation:latest
+          ports:
+            - containerPort: 8004
+          env:
+            - name: PORT
+              value: "8004"
+            - name: REDIS_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: redis-secret
+                  key: host
+            - name: REDIS_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: redis-secret
+                  key: port
+            - name: SQS_QUEUE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: sqs-secret
+                  key: queue_url
+            - name: AWS_REGION
+              valueFrom:
+                secretKeyRef:
+                  name: sqs-secret
+                  key: region
+            # RDS core para fallback quando cache miss
+            - name: DB_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: rds-core-secret
+                  key: host
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: rds-core-secret
+                  key: username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: rds-core-secret
+                  key: password
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: rds-core-secret
+                  key: dbname
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8004
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8004
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: togglemaster-evaluation-svc
+  namespace: togglemaster
+spec:
+  selector:
+    app: togglemaster-evaluation
+  ports:
+    - protocol: TCP
+      port: 8004
+      targetPort: 8004
+  type: ClusterIP
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: togglemaster-evaluation-hpa
+  namespace: togglemaster
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: togglemaster-evaluation
+  minReplicas: 2
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 60
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+        - type: Pods
+          value: 4
+          periodSeconds: 15
+    scaleDown:
+      stabilizationWindowSeconds: 60

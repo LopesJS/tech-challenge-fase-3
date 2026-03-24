@@ -1,0 +1,36 @@
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfstate.lock.info
+tfplan
+.terraform.lock.hcl
+terraform/environments/prod/terraform.tfvars
+
+# Secrets
+*.env
+.env.*
+secrets/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Go
+*/vendor/
+*/bin/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+dist/
+.pytest_cache/
+htmlcov/
+coverage.xml

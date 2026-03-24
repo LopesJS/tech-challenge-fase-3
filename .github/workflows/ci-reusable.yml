@@ -1,0 +1,256 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Workflow REUTILIZÁVEL — AWS Academy Edition
+#
+# AUTENTICAÇÃO: IAM User Access Key (não OIDC — Academy não suporta criar
+# OIDC providers nem roles customizadas para GitHub Actions)
+#
+# Secrets necessários no repositório GitHub:
+#   AWS_ACCESS_KEY_ID      → Obtido em: Academy → AWS Details → AWS CLI
+#   AWS_SECRET_ACCESS_KEY  → Idem
+#   AWS_SESSION_TOKEN      → Idem (obrigatório no Academy — credenciais temporárias)
+#   AWS_ACCOUNT_ID         → ID de 12 dígitos da conta
+#
+# ATENÇÃO: As credenciais do Academy expiram em ~4h.
+# Renovar os secrets no GitHub a cada sessão de laboratório.
+# ─────────────────────────────────────────────────────────────────────────────
+name: CI Reusável — DevSecOps Pipeline (Academy)
+
+on:
+  workflow_call:
+    inputs:
+      service:
+        required: true
+        type: string
+      language:
+        required: true
+        type: string
+      working_directory:
+        required: true
+        type: string
+    secrets:
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        required: true
+      AWS_SESSION_TOKEN:
+        required: true
+      AWS_ACCOUNT_ID:
+        required: true
+
+env:
+  AWS_REGION:  us-east-1
+  ECR_REPO:    ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/togglemaster-${{ inputs.service }}
+  IMAGE_TAG:   ${{ github.sha }}
+
+permissions:
+  contents: write   # necessário para o job update-gitops fazer git push
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────
+  # JOB 1 — Build & Unit Test
+  # ─────────────────────────────────────────────────────────────────────────
+  build-test:
+    name: "1 · Build & Test"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working_directory }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Go
+        if: inputs.language == 'go'
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache-dependency-path: "${{ inputs.working_directory }}/go.sum"
+
+      - name: Go Build
+        if: inputs.language == 'go'
+        run: go build ./...
+
+      - name: Go Test
+        if: inputs.language == 'go'
+        run: go test ./... -v -race -coverprofile=coverage.out
+
+      - name: Setup Python
+        if: inputs.language == 'python'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Python Install
+        if: inputs.language == 'python'
+        run: pip install -r requirements.txt
+
+      - name: Python Test
+        if: inputs.language == 'python'
+        run: |
+          pip install pytest pytest-cov
+          pytest --cov=. --cov-report=xml -v || true
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # JOB 2 — Linter
+  # ─────────────────────────────────────────────────────────────────────────
+  lint:
+    name: "2 · Linter"
+    runs-on: ubuntu-latest
+    needs: build-test
+    defaults:
+      run:
+        working-directory: ${{ inputs.working_directory }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: golangci-lint
+        if: inputs.language == 'go'
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.58
+          working-directory: ${{ inputs.working_directory }}
+
+      - name: Setup Python
+        if: inputs.language == 'python'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: flake8
+        if: inputs.language == 'python'
+        run: |
+          pip install flake8
+          flake8 . --max-line-length=120 --exclude=.venv,__pycache__
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # JOB 3 — Security Scan: SCA + SAST
+  # REGRA: vulnerabilidade CRITICAL bloqueia o pipeline (exit-code 1)
+  # ─────────────────────────────────────────────────────────────────────────
+  security-scan:
+    name: "3 · Security Scan (SAST + SCA)"
+    runs-on: ubuntu-latest
+    needs: lint
+    defaults:
+      run:
+        working-directory: ${{ inputs.working_directory }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # SCA — verifica dependências do filesystem
+      - name: Trivy SCA — filesystem scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type:      fs
+          scan-ref:       ${{ inputs.working_directory }}
+          format:         table
+          exit-code:      "1"
+          severity:       CRITICAL,HIGH
+          ignore-unfixed: true
+
+      # SAST Go — gosec
+      - name: gosec SAST
+        if: inputs.language == 'go'
+        uses: securego/gosec@master
+        with:
+          args: "-severity high -confidence medium -exclude-generated ./..."
+          working_directory: ${{ inputs.working_directory }}
+
+      # SAST Python — bandit
+      - name: bandit SAST
+        if: inputs.language == 'python'
+        run: |
+          pip install bandit
+          bandit -r . -ll -ii -f txt
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # JOB 4 — Docker Build + Container Scan + Push ECR
+  # ─────────────────────────────────────────────────────────────────────────
+  docker-push:
+    name: "4 · Docker Build → Scan → ECR Push"
+    runs-on: ubuntu-latest
+    needs: security-scan
+    defaults:
+      run:
+        working-directory: ${{ inputs.working_directory }}
+
+    outputs:
+      ecr_image: ${{ env.ECR_REPO }}:${{ env.IMAGE_TAG }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Autenticação AWS Academy — credenciais temporárias com session token
+      - name: Configure AWS credentials (Academy)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token:     ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region:            ${{ env.AWS_REGION }}
+
+      - name: Login ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Docker Build
+        run: |
+          docker build \
+            --label "git.sha=${{ github.sha }}" \
+            --label "git.ref=${{ github.ref_name }}" \
+            -t ${{ env.ECR_REPO }}:${{ env.IMAGE_TAG }} \
+            -t ${{ env.ECR_REPO }}:latest \
+            .
+
+      # Container Scan — falha se CRITICAL na imagem
+      - name: Trivy — Container image scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref:      "${{ env.ECR_REPO }}:${{ env.IMAGE_TAG }}"
+          format:         table
+          exit-code:      "1"
+          severity:       CRITICAL
+          ignore-unfixed: true
+
+      - name: Push to ECR
+        run: |
+          docker push ${{ env.ECR_REPO }}:${{ env.IMAGE_TAG }}
+          docker push ${{ env.ECR_REPO }}:latest
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # JOB 5 — Atualiza tag no manifesto GitOps → ArgoCD detecta e deploya
+  # Executa apenas em push na main (não em PRs)
+  # ─────────────────────────────────────────────────────────────────────────
+  update-gitops:
+    name: "5 · Update GitOps tag"
+    runs-on: ubuntu-latest
+    needs: docker-push
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Update image tag in deployment.yaml
+        run: |
+          FILE="gitops/base/${{ inputs.service }}/deployment.yaml"
+          NEW_IMAGE="${{ needs.docker-push.outputs.ecr_image }}"
+
+          echo "Atualizando $FILE → $NEW_IMAGE"
+
+          # Substitui linha de image: independente da tag atual
+          sed -i "s|image:.*togglemaster-${{ inputs.service }}:.*|image: ${NEW_IMAGE}|g" "$FILE"
+
+          git config user.name  "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add "$FILE"
+
+          if git diff --cached --quiet; then
+            echo "Sem mudança de tag, nada a commitar."
+          else
+            git commit -m "ci(${{ inputs.service }}): image → ${{ env.IMAGE_TAG }} [skip ci]"
+            git push
+          fi

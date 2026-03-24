@@ -1,0 +1,23 @@
+name: CI — targeting-service
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "services/targeting/**"
+      - ".github/workflows/ci-targeting.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "services/targeting/**"
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci-reusable.yml
+    with:
+      service:           targeting
+      language:          python
+      working_directory: services/targeting
+    secrets:
+      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+      GHA_ROLE_ARN:   ${{ secrets.GHA_ROLE_ARN }}

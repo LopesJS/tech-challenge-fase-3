@@ -1,0 +1,32 @@
+services:
+  targeting-app:
+    container_name: targeting-service
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${PORT}:${PORT}"
+    env_file:
+      - .env
+    depends_on:
+      - targeting-postgres
+    restart: unless-stopped
+
+  targeting-postgres:
+    image: postgres:14
+    container_name: targeting-postgres
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: targeting_db
+      POSTGRES_USER: dev
+      POSTGRES_PASSWORD: "1234567"
+    ports:
+      - "5434:5434"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db:/docker-entrypoint-initdb.d
+    restart: unless-stopped
+
+volumes:
+  pgdata:

@@ -1,0 +1,23 @@
+name: CI — analytics-service
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "services/analytics/**"
+      - ".github/workflows/ci-analytics.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "services/analytics/**"
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci-reusable.yml
+    with:
+      service:           analytics
+      language:          python
+      working_directory: services/analytics
+    secrets:
+      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+      GHA_ROLE_ARN:   ${{ secrets.GHA_ROLE_ARN }}

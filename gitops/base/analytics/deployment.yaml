@@ -1,0 +1,100 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: togglemaster-analytics
+  namespace: togglemaster
+  labels:
+    app: togglemaster-analytics
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: togglemaster-analytics
+  template:
+    metadata:
+      labels:
+        app: togglemaster-analytics
+    spec:
+      containers:
+        - name: analytics
+          # TAG ATUALIZADA AUTOMATICAMENTE PELO CI
+          image: ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/togglemaster-analytics:latest
+          ports:
+            - containerPort: 8005
+          env:
+            - name: PORT
+              value: "8005"
+            - name: SQS_QUEUE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: sqs-secret
+                  key: queue_url
+            - name: AWS_REGION
+              valueFrom:
+                secretKeyRef:
+                  name: sqs-secret
+                  key: region
+            - name: DYNAMODB_TABLE
+              value: "ToggleMasterAnalytics"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8005
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8005
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: togglemaster-analytics-svc
+  namespace: togglemaster
+spec:
+  selector:
+    app: togglemaster-analytics
+  ports:
+    - protocol: TCP
+      port: 8005
+      targetPort: 8005
+  type: ClusterIP
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: togglemaster-analytics-hpa
+  namespace: togglemaster
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: togglemaster-analytics
+  minReplicas: 1
+  maxReplicas: 4
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 60
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+        - type: Pods
+          value: 4
+          periodSeconds: 15
+    scaleDown:
+      stabilizationWindowSeconds: 60

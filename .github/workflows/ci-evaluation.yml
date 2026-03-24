@@ -1,0 +1,23 @@
+name: CI — evaluation-service
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "services/evaluation/**"
+      - ".github/workflows/ci-evaluation.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "services/evaluation/**"
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci-reusable.yml
+    with:
+      service:           evaluation
+      language:          go
+      working_directory: services/evaluation
+    secrets:
+      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+      GHA_ROLE_ARN:   ${{ secrets.GHA_ROLE_ARN }}

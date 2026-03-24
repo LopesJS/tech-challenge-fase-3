@@ -1,0 +1,32 @@
+services:
+  flag-app:
+    container_name: flag-service
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${PORT}:${PORT}"
+    env_file:
+      - .env
+    depends_on:
+      - flag-postgres
+    restart: unless-stopped
+
+  flag-postgres:
+    image: postgres:14
+    container_name: flag-postgres
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: flags_db
+      POSTGRES_USER: tester
+      POSTGRES_PASSWORD: "123456"
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db:/docker-entrypoint-initdb.d
+    restart: unless-stopped
+
+volumes:
+  pgdata:

@@ -1,0 +1,28 @@
+services:
+  analytics-app:
+    container_name: analytics-service
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${PORT}:${PORT}"
+    env_file:
+      - .env
+    environment:
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_ENDPOINT_URL: http://localstack:4566
+    depends_on:
+      - localstack
+
+  localstack:
+    image: localstack/localstack:latest
+    container_name: localstack
+    ports:
+      - "4566:4566"
+    environment:
+      SERVICES: sqs,dynamodb
+      DEBUG: 1
+      AWS_DEFAULT_REGION: ${AWS_REGION}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
