@@ -10,6 +10,8 @@ on:
     branches: [main]
     paths:
       - "services/evaluation/**"
+permissions:
+  contents: write
 
 jobs:
   ci:
@@ -19,5 +21,7 @@ jobs:
       language:          go
       working_directory: services/evaluation
     secrets:
-      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
-      GHA_ROLE_ARN:   ${{ secrets.GHA_ROLE_ARN }}
+      AWS_ACCESS_KEY_ID:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_SESSION_TOKEN:     ${{ secrets.AWS_SESSION_TOKEN }}
+      AWS_ACCOUNT_ID:        ${{ secrets.AWS_ACCOUNT_ID }}
