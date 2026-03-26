@@ -2,26 +2,28 @@ name: CI — targeting-service
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
     paths:
       - "services/targeting/**"
       - ".github/workflows/ci-targeting.yml"
   pull_request:
-    branches: [main]
+    branches:
+      - main
     paths:
       - "services/targeting/**"
+
 permissions:
   contents: write
 
 jobs:
   ci:
+    name: Call reusable pipeline
     uses: ./.github/workflows/ci-reusable.yml
+
     with:
-      service:           targeting
-      language:          python
+      service: targeting
+      language: python
       working_directory: services/targeting
-    secrets:
-      AWS_ACCESS_KEY_ID:     ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      AWS_SESSION_TOKEN:     ${{ secrets.AWS_SESSION_TOKEN }}
-      AWS_ACCOUNT_ID:        ${{ secrets.AWS_ACCOUNT_ID }}
+
+    secrets: inherit
