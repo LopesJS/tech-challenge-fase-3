@@ -241,25 +241,16 @@ jobs:
 
           echo "Atualizando $FILE → $NEW_IMAGE"
 
-          sed -i "s|image: .*|image: ${NEW_IMAGE}|g" "$FILE"
+          # Substitui linha de image: independente da tag atual
+          sed -i "s|image:.*togglemaster-${{ inputs.service }}:.*|image: ${NEW_IMAGE}|g" "$FILE"
 
           git config user.name  "GitHub Actions"
           git config user.email "actions@github.com"
-
           git add "$FILE"
 
           if git diff --cached --quiet; then
             echo "Sem mudança de tag, nada a commitar."
           else
             git commit -m "ci(${{ inputs.service }}): image → ${{ env.IMAGE_TAG }} [skip ci]"
-
-            echo "Sincronizando com o remoto..."
-            git fetch origin main
-            git rebase origin/main || {
-              echo "Rebase falhou, tentando merge..."
-              git pull --no-rebase origin main
-            }
-
-            echo "Enviando alterações..."
-            git push origin main
+            git push
           fi
