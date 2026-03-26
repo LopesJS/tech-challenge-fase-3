@@ -435,5 +435,9 @@ def delete_rule(flag_name):
 # Entry point
 # ---------------------------------------------------------------------
 if __name__ == "__main__":
+    import os
+
     port = int(os.getenv("PORT", 8003))
-    app.run(host="0.0.0.0", port=port, debug=False)
+    host = os.getenv("HOST", "127.0.0.1")
+
+    app.run(host=host, port=port, debug=False)  # nosec B104
