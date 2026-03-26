@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: targeting
-          image: 
+          image: 381492286653.dkr.ecr.us-east-1.amazonaws.com/togglemaster-targeting:latest
           ports:
             - containerPort: 8003
           env:
