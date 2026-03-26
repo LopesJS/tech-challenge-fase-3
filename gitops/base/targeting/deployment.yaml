@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: targeting
-          image: AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/togglemaster-targeting:latest
+          image: ${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/togglemaster-targeting:${IMAGE_TAG}
           ports:
             - containerPort: 8003
           env:
