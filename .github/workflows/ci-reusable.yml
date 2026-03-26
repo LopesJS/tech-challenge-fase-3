@@ -241,7 +241,7 @@ jobs:
 
           echo "Atualizando $FILE → $NEW_IMAGE"
 
-          sed -i "s|image:.*togglemaster-${{ inputs.service }}:.*|image: ${NEW_IMAGE}|g" "$FILE"
+          sed -i "s|image: .*|image: ${NEW_IMAGE}|g" "$FILE"
 
           git config user.name  "GitHub Actions"
           git config user.email "actions@github.com"
@@ -255,7 +255,10 @@ jobs:
 
             echo "Sincronizando com o remoto..."
             git fetch origin main
-            git rebase origin/main
+            git rebase origin/main || {
+              echo "Rebase falhou, tentando merge..."
+              git pull --no-rebase origin main
+            }
 
             echo "Enviando alterações..."
             git push origin main
