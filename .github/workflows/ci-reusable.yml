@@ -47,10 +47,10 @@ permissions:
 
 jobs:
   # ─────────────────────────────────────────────────────────────────────────
-  # JOB 1 — Build & Unit Test
+  # JOB 1 — Build, Unit Test & Lint
   # ─────────────────────────────────────────────────────────────────────────
   build-test:
-    name: "1 · Build & Test"
+    name: "1 · Build, Test & Lint"
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -61,10 +61,12 @@ jobs:
 
       - name: Setup Go
         if: inputs.language == 'go'
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
-          go-version: "1.22"
-          cache-dependency-path: "${{ inputs.working_directory }}/go.sum"
+          go-version-file: "${{ inputs.working_directory }}/go.mod"
+          cache: true
+          cache-dependency-path: |
+            ${{ inputs.working_directory }}/go.sum
 
       - name: Go Build
         if: inputs.language == 'go'
@@ -73,6 +75,13 @@ jobs:
       - name: Go Test
         if: inputs.language == 'go'
         run: go test ./... -v -race -coverprofile=coverage.out
+
+      - name: GolangCI-Lint
+        if: inputs.language == 'go'
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.11.1
+          working-directory: ${{ inputs.working_directory }}
 
       - name: Setup Python
         if: inputs.language == 'python'
@@ -89,7 +98,7 @@ jobs:
         if: inputs.language == 'python'
         run: |
           pip install pytest pytest-cov
-          pytest --cov=. --cov-report=xml -v || true
+          pytest --cov=. --cov-report=xml -v
 
   # ─────────────────────────────────────────────────────────────────────────
   # JOB 2 — Linter
