@@ -116,7 +116,7 @@ jobs:
 
       - name: golangci-lint
         if: inputs.language == 'go'
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v7
         with:
           version: v2.11.3
           working-directory: ${{ inputs.working_directory }}
