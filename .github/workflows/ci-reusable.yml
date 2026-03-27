@@ -61,10 +61,10 @@ jobs:
 
       - name: Setup Go
         if: inputs.language == 'go'
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v5
         with:
           go-version-file: "${{ inputs.working_directory }}/go.mod"
-          cache: true
+          cache: false
           cache-dependency-path: |
             ${{ inputs.working_directory }}/go.sum
 
@@ -118,7 +118,7 @@ jobs:
         if: inputs.language == 'go'
         uses: golangci/golangci-lint-action@v6
         with:
-          version: v1.64.8
+          version: v2.11.3
           working-directory: ${{ inputs.working_directory }}
 
       - name: Setup Python
