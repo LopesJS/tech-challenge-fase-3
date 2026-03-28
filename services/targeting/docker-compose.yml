@@ -20,7 +20,7 @@ services:
     environment:
       POSTGRES_DB: targeting_db
       POSTGRES_USER: dev
-      POSTGRES_PASSWORD: "1234567"
+      POSTGRES_PASSWORD: "adminfake"
     ports:
       - "5434:5434"
     volumes:
